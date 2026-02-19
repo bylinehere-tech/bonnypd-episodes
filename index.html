@@ -184,8 +184,24 @@ function formatDate(iso){
 
 function summarize(text){
   if(!text) return "설명이 없는 영상입니다.";
-  const clean = text.replace(/\s+/g," ").trim();
-  return clean.length > 140 ? clean.slice(0,140)+"…" : clean;
+
+  // HTML 엔티티 정리
+  let t = String(text)
+    .replaceAll("&amp;", "&")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#39;", "'")
+    .replaceAll("&#x27;", "'");
+
+  // 줄바꿈 / 이상 공백 제거
+  t = t
+    .replace(/\r?\n|\r/g, " ")
+    .replace(/\t/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return t.length > 140 ? t.slice(0,140) + "…" : t;
 }
 
 function render(items){
