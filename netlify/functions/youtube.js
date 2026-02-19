@@ -1,5 +1,5 @@
 // netlify/functions/youtube.js
-// Netlify Functions (CommonJS) 안정형 핸들 기반: @BONNYpd → channelId 추출 → RSS(channel_id)로 목록 반환
+// 안정형: @BONNYpd 페이지에서 channelId(UC...) 추출 → RSS(channel_id)로 영상 목록 반환
 
 let cached = { channelId: null, ts: 0 };
 
@@ -36,7 +36,6 @@ exports.handler = async function (event) {
 
     const channelId = cached.channelId;
 
-    // 가장 안정적인 RSS
     const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
     const res = await fetch(feedUrl, {
       headers: {
@@ -50,7 +49,6 @@ exports.handler = async function (event) {
     }
 
     const xml = await res.text();
-
     const entries = xml.split("<entry>").slice(1).map(chunk => "<entry>" + chunk);
 
     const pick = (text, tag) => {
