@@ -15,55 +15,15 @@
   --muted2:rgba(255,255,255,.5);
   --r:18px;
 }
-
 *{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text);}
+.wrap{max-width:1000px;margin:0 auto;padding:50px 20px 80px;}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px;}
+h1{margin:0;font-size:20px;letter-spacing:.2px;}
+.sub{margin-top:6px;font-size:13px;color:var(--muted);line-height:1.5;}
+.status{border:1px solid var(--line);border-radius:999px;padding:8px 12px;font-size:12px;color:var(--muted2);white-space:nowrap;}
 
-body{
-  margin:0;
-  font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-  background:var(--bg);
-  color:var(--text);
-}
-
-.wrap{
-  max-width:1000px;
-  margin:0 auto;
-  padding:50px 20px 80px;
-}
-
-header{
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-start;
-  gap:12px;
-  margin-bottom:24px;
-}
-
-h1{
-  margin:0;
-  font-size:20px;
-  letter-spacing:.2px;
-}
-
-.sub{
-  margin-top:6px;
-  font-size:13px;
-  color:var(--muted);
-}
-
-.status{
-  border:1px solid var(--line);
-  border-radius:999px;
-  padding:8px 12px;
-  font-size:12px;
-  color:var(--muted2);
-  white-space:nowrap;
-}
-
-.search{
-  margin-bottom:24px;
-}
-
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:18px 0 18px;}
 input{
   width:100%;
   max-width:520px;
@@ -76,116 +36,73 @@ input{
   outline:none;
 }
 
-.grid{
-  display:grid;
-  grid-template-columns:1fr;
-  gap:14px;
-}
-
-@media (min-width:860px){
-  .grid{ grid-template-columns:1fr 1fr; }
-}
+.grid{display:grid;grid-template-columns:1fr;gap:14px;}
+@media (min-width:860px){ .grid{grid-template-columns:1fr 1fr;} }
 
 .card{
-  display:flex;
-  gap:14px;
-  text-decoration:none;
-  color:inherit;
-  background:var(--card);
+  display:flex;gap:14px;text-decoration:none;color:inherit;
+  background:var(--card);border:1px solid var(--line);
+  border-radius:var(--r);padding:14px;transition:.15s ease;
+}
+.card:hover{background:rgba(255,255,255,.03);transform:translateY(-2px);border-color:rgba(255,255,255,.18);}
+.thumb{width:160px;height:90px;border-radius:14px;object-fit:cover;border:1px solid rgba(255,255,255,.1);background:#000;}
+.meta{display:flex;flex-direction:column;gap:8px;min-width:0;}
+.title{font-weight:800;font-size:14px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.desc{font-size:12px;color:var(--muted);line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.row{margin-top:auto;font-size:12px;color:var(--muted2);}
+
+.actions{margin-top:18px;display:flex;justify-content:center;}
+button{
   border:1px solid var(--line);
-  border-radius:var(--r);
-  padding:14px;
-  transition:.15s ease;
-}
-
-.card:hover{
-  background:rgba(255,255,255,.03);
-  transform:translateY(-2px);
-  border-color:rgba(255,255,255,.18);
-}
-
-.thumb{
-  width:160px;
-  height:90px;
+  background:transparent;
+  color:var(--text);
+  padding:12px 14px;
   border-radius:14px;
-  object-fit:cover;
-  border:1px solid rgba(255,255,255,.1);
+  cursor:pointer;
+  font-weight:700;
 }
+button:hover{background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.18);}
+button:disabled{opacity:.5;cursor:not-allowed;}
 
-.meta{
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-  min-width:0;
-}
-
-.title{
-  font-weight:800;
-  font-size:14px;
-  line-height:1.4;
-  display:-webkit-box;
-  -webkit-line-clamp:2;
-  -webkit-box-orient:vertical;
-  overflow:hidden;
-}
-
-.desc{
-  font-size:12px;
-  color:var(--muted);
-  line-height:1.6;
-  display:-webkit-box;
-  -webkit-line-clamp:2;
-  -webkit-box-orient:vertical;
-  overflow:hidden;
-}
-
-.row{
-  margin-top:auto;
-  font-size:12px;
-  color:var(--muted2);
-}
-
-.empty{
-  padding:20px;
-  border:1px dashed var(--line);
-  border-radius:14px;
-  color:var(--muted);
-}
+.empty{padding:20px;border:1px dashed var(--line);border-radius:14px;color:var(--muted);}
 </style>
 </head>
 <body>
 
 <div class="wrap">
+  <header>
+    <div>
+      <h1>BONNYpd — YouTube Episodes</h1>
+      <div class="sub">“더보기”로 50개씩 계속 불러옵니다 (YouTube API)</div>
+    </div>
+    <div class="status" id="status">Loading...</div>
+  </header>
 
-<header>
-  <div>
-    <h1>BONNYpd — YouTube Episodes</h1>
-    <div class="sub">최신 업로드 기준 자동 업데이트</div>
+  <div class="controls">
+    <input id="q" placeholder="검색 (제목/설명)" />
   </div>
-  <div class="status" id="status">Loading...</div>
-</header>
 
-<div class="search">
-  <input id="q" placeholder="영상 검색 (제목/설명)">
-</div>
+  <div class="grid" id="list"></div>
 
-<div class="grid" id="list"></div>
-
+  <div class="actions">
+    <button id="more" onclick="loadMore()" disabled>더보기</button>
+  </div>
 </div>
 
 <script>
-
 let allVideos = [];
+let nextPageToken = null;
+let loading = false;
 
 function formatDate(iso){
-  const d = new Date(iso);
-  return d.toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit"});
+  try{
+    const d = new Date(iso);
+    return d.toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit"});
+  }catch{ return ""; }
 }
 
 function summarize(text){
   if(!text) return "설명이 없는 영상입니다.";
-
-  // HTML 엔티티 정리
   let t = String(text)
     .replaceAll("&amp;", "&")
     .replaceAll("&lt;", "<")
@@ -193,15 +110,17 @@ function summarize(text){
     .replaceAll("&quot;", '"')
     .replaceAll("&#39;", "'")
     .replaceAll("&#x27;", "'");
-
-  // 줄바꿈 / 이상 공백 제거
-  t = t
-    .replace(/\r?\n|\r/g, " ")
-    .replace(/\t/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
+  t = t.replace(/\r?\n|\r/g, " ").replace(/\t/g, " ").replace(/\s+/g, " ").trim();
   return t.length > 140 ? t.slice(0,140) + "…" : t;
+}
+
+function escapeHtml(str){
+  return String(str)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
 }
 
 function render(items){
@@ -213,7 +132,7 @@ function render(items){
     return;
   }
 
-  items.forEach(v=>{
+  for (const v of items){
     const a = document.createElement("a");
     a.className="card";
     a.href=v.link;
@@ -228,59 +147,75 @@ function render(items){
         <div class="row">${formatDate(v.published)} · OPEN ↗</div>
       </div>
     `;
-
     list.appendChild(a);
-  });
-}
-
-function escapeHtml(str){
-  return String(str)
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-}
-
-async function loadVideos(){
-  const status = document.getElementById("status");
-  status.textContent="Loading...";
-
-  try{
-    const res = await fetch("/api/youtube?max=40");
-    const data = await res.json();
-
-    if(!res.ok || data.error){
-      status.textContent="Error";
-      render([]);
-      return;
-    }
-
-    allVideos = data.items || [];
-    status.textContent="Updated";
-
-    render(allVideos);
-
-  }catch(e){
-    status.textContent="Error";
-    render([]);
   }
 }
 
-document.getElementById("q").addEventListener("input",(e)=>{
-  const q = e.target.value.toLowerCase();
-  if(!q) return render(allVideos);
-
+function applyFilter(){
+  const q = document.getElementById("q").value.trim().toLowerCase();
+  if (!q) return render(allVideos);
   const filtered = allVideos.filter(v =>
-    (v.title||"").toLowerCase().includes(q) ||
-    (v.summary||"").toLowerCase().includes(q)
+    (v.title || "").toLowerCase().includes(q) ||
+    (v.summary || "").toLowerCase().includes(q)
   );
-
   render(filtered);
-});
+}
 
-loadVideos();
+async function loadMore(){
+  if (loading) return;
+  loading = true;
 
+  const status = document.getElementById("status");
+  const btn = document.getElementById("more");
+
+  btn.disabled = true;
+  btn.textContent = "불러오는 중…";
+  status.textContent = "Loading…";
+
+  try{
+    const params = new URLSearchParams({ max: "50" });
+    if (nextPageToken) params.set("pageToken", nextPageToken);
+
+    const res = await fetch(`/api/youtube?${params.toString()}`);
+    const data = await res.json();
+
+    if (!res.ok || data.error){
+      status.textContent = "Error";
+      btn.textContent = "더보기";
+      btn.disabled = true;
+      console.error(data);
+      loading = false;
+      return;
+    }
+
+    allVideos = allVideos.concat(data.items || []);
+    nextPageToken = data.nextPageToken || null;
+
+    status.textContent = `Loaded: ${allVideos.length}`;
+    applyFilter();
+
+    if (nextPageToken){
+      btn.disabled = false;
+      btn.textContent = "더보기 (50개)";
+    } else {
+      btn.disabled = true;
+      btn.textContent = "끝";
+    }
+
+  }catch(e){
+    status.textContent = "Error";
+    btn.textContent = "더보기";
+    btn.disabled = true;
+    console.error(e);
+  } finally {
+    loading = false;
+  }
+}
+
+document.getElementById("q").addEventListener("input", applyFilter);
+
+// 첫 로드
+loadMore();
 </script>
 
 </body>
