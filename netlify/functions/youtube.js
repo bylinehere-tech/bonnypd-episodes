@@ -1,5 +1,5 @@
 // netlify/functions/youtube.js
-// 안정형: @BONNYpd 페이지에서 channelId(UC...) 추출 → RSS(channel_id)로 영상 목록 반환
+// Robust version: 여러 패턴으로 채널 ID(UC...)를 추출 → RSS(channel_id)로 영상 목록 반환
 
 let cached = { channelId: null, ts: 0 };
 
@@ -7,48 +7,37 @@ exports.handler = async function (event) {
   try {
     const max = Math.min(100, Math.max(1, Number(event.queryStringParameters?.max || 30)));
     const HANDLE = "BONNYpd";
-
     const now = Date.now();
 
-    // 1시간 캐시
+    // 1) channelId 캐시 (1시간)
     if (!cached.channelId || (now - cached.ts) > 60 * 60 * 1000) {
-      const chRes = await fetch(`https://www.youtube.com/@${HANDLE}`, {
-        headers: {
-          "user-agent": "Mozilla/5.0",
-          "accept": "text/html,*/*",
-        },
-      });
+      const html = await fetchText(`https://www.youtube.com/@${HANDLE}`);
 
-      if (!chRes.ok) {
-        return json(500, { error: "Failed to fetch channel page", status: chRes.status });
+      const channelId = extractChannelId(html);
+
+      if (!channelId) {
+        // fallback 1: RSS user= 로 시도 (일부 채널은 동작)
+        const rssUser = await fetchText(`https://www.youtube.com/feeds/videos.xml?user=${HANDLE}`);
+        const idFromRssUser = (rssUser.match(/<yt:channelId>(UC[^<]+)<\/yt:channelId>/) || [])[1];
+        if (idFromRssUser) {
+          cached.channelId = idFromRssUser;
+          cached.ts = now;
+        } else {
+          return json(500, { error: "Could not extract channelId from handle page (robust)", hint: "Try using explicit channel_id if needed." });
+        }
+      } else {
+        cached.channelId = channelId;
+        cached.ts = now;
       }
-
-      const html = await chRes.text();
-      const m = html.match(/"channelId":"(UC[a-zA-Z0-9_-]{20,})"/);
-
-      if (!m) {
-        return json(500, { error: "Could not extract channelId from handle page" });
-      }
-
-      cached.channelId = m[1];
-      cached.ts = now;
     }
 
     const channelId = cached.channelId;
 
-    const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
-    const res = await fetch(feedUrl, {
-      headers: {
-        "user-agent": "Mozilla/5.0",
-        "accept": "application/xml,text/xml,*/*",
-      },
+    // 2) 안정적인 RSS(channel_id)
+    const xml = await fetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, {
+      accept: "application/xml,text/xml,*/*",
     });
 
-    if (!res.ok) {
-      return json(500, { error: "Failed to fetch YouTube feed", status: res.status });
-    }
-
-    const xml = await res.text();
     const entries = xml.split("<entry>").slice(1).map(chunk => "<entry>" + chunk);
 
     const pick = (text, tag) => {
@@ -89,10 +78,42 @@ exports.handler = async function (event) {
       count: items.length,
       items,
     });
+
   } catch (err) {
     return json(500, { error: String(err) });
   }
 };
+
+function extractChannelId(html) {
+  // ✅ 여러 패턴으로 UC... 추출
+  const patterns = [
+    /"channelId":"(UC[a-zA-Z0-9_-]{20,})"/,
+    /"browseId":"(UC[a-zA-Z0-9_-]{20,})"/,
+    /"externalId":"(UC[a-zA-Z0-9_-]{20,})"/,
+    /https:\/\/www\.youtube\.com\/channel\/(UC[a-zA-Z0-9_-]{20,})/,
+    /<meta itemprop="channelId" content="(UC[a-zA-Z0-9_-]{20,})"/,
+  ];
+
+  for (const re of patterns) {
+    const m = html.match(re);
+    if (m && m[1]) return m[1];
+  }
+
+  // 마지막 보루: UC로 시작하는 토큰을 넓게 탐색 (과탐 방지 위해 길이 제한)
+  const loose = html.match(/UC[a-zA-Z0-9_-]{20,}/);
+  return loose ? loose[0] : null;
+}
+
+async function fetchText(url, opts = {}) {
+  const res = await fetch(url, {
+    headers: {
+      "user-agent": "Mozilla/5.0",
+      "accept": opts.accept || "text/html,*/*",
+    },
+  });
+  if (!res.ok) throw new Error(`Fetch failed: ${url} (${res.status})`);
+  return await res.text();
+}
 
 function json(statusCode, obj) {
   return {
