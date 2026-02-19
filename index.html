@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BONNYpd — Episodes</title>
+
+<style>
+:root{
+  --bg:#0b0b0c;
+  --card:#111113;
+  --line:rgba(255,255,255,.08);
+  --text:#fff;
+  --muted:rgba(255,255,255,.65);
+  --muted2:rgba(255,255,255,.5);
+  --r:18px;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+
+.wrap{
+  max-width:1000px;
+  margin:0 auto;
+  padding:50px 20px 80px;
+}
+
+header{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  margin-bottom:24px;
+}
+
+h1{
+  margin:0;
+  font-size:20px;
+  letter-spacing:.2px;
+}
+
+.sub{
+  margin-top:6px;
+  font-size:13px;
+  color:var(--muted);
+}
+
+.status{
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:8px 12px;
+  font-size:12px;
+  color:var(--muted2);
+  white-space:nowrap;
+}
+
+.search{
+  margin-bottom:24px;
+}
+
+input{
+  width:100%;
+  max-width:520px;
+  padding:12px 14px;
+  border-radius:14px;
+  border:1px solid var(--line);
+  background:transparent;
+  color:var(--text);
+  font-size:14px;
+  outline:none;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:14px;
+}
+
+@media (min-width:860px){
+  .grid{ grid-template-columns:1fr 1fr; }
+}
+
+.card{
+  display:flex;
+  gap:14px;
+  text-decoration:none;
+  color:inherit;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--r);
+  padding:14px;
+  transition:.15s ease;
+}
+
+.card:hover{
+  background:rgba(255,255,255,.03);
+  transform:translateY(-2px);
+  border-color:rgba(255,255,255,.18);
+}
+
+.thumb{
+  width:160px;
+  height:90px;
+  border-radius:14px;
+  object-fit:cover;
+  border:1px solid rgba(255,255,255,.1);
+}
+
+.meta{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-width:0;
+}
+
+.title{
+  font-weight:800;
+  font-size:14px;
+  line-height:1.4;
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+
+.desc{
+  font-size:12px;
+  color:var(--muted);
+  line-height:1.6;
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+
+.row{
+  margin-top:auto;
+  font-size:12px;
+  color:var(--muted2);
+}
+
+.empty{
+  padding:20px;
+  border:1px dashed var(--line);
+  border-radius:14px;
+  color:var(--muted);
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header>
+  <div>
+    <h1>BONNYpd — YouTube Episodes</h1>
+    <div class="sub">최신 업로드 기준 자동 업데이트</div>
+  </div>
+  <div class="status" id="status">Loading...</div>
+</header>
+
+<div class="search">
+  <input id="q" placeholder="영상 검색 (제목/설명)">
+</div>
+
+<div class="grid" id="list"></div>
+
+</div>
+
+<script>
+
+let allVideos = [];
+
+function formatDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit"});
+}
+
+function summarize(text){
+  if(!text) return "설명이 없는 영상입니다.";
+  const clean = text.replace(/\s+/g," ").trim();
+  return clean.length > 140 ? clean.slice(0,140)+"…" : clean;
+}
+
+function render(items){
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  if(!items.length){
+    list.innerHTML = `<div class="empty">영상이 없습니다.</div>`;
+    return;
+  }
+
+  items.forEach(v=>{
+    const a = document.createElement("a");
+    a.className="card";
+    a.href=v.link;
+    a.target="_blank";
+    a.rel="noopener";
+
+    a.innerHTML=`
+      <img class="thumb" src="${v.thumbnail}" alt="">
+      <div class="meta">
+        <div class="title">${escapeHtml(v.title)}</div>
+        <div class="desc">${escapeHtml(summarize(v.summary))}</div>
+        <div class="row">${formatDate(v.published)} · OPEN ↗</div>
+      </div>
+    `;
+
+    list.appendChild(a);
+  });
+}
+
+function escapeHtml(str){
+  return String(str)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+async function loadVideos(){
+  const status = document.getElementById("status");
+  status.textContent="Loading...";
+
+  try{
+    const res = await fetch("/api/youtube?max=40");
+    const data = await res.json();
+
+    if(!res.ok || data.error){
+      status.textContent="Error";
+      render([]);
+      return;
+    }
+
+    allVideos = data.items || [];
+    status.textContent="Updated";
+
+    render(allVideos);
+
+  }catch(e){
+    status.textContent="Error";
+    render([]);
+  }
+}
+
+document.getElementById("q").addEventListener("input",(e)=>{
+  const q = e.target.value.toLowerCase();
+  if(!q) return render(allVideos);
+
+  const filtered = allVideos.filter(v =>
+    (v.title||"").toLowerCase().includes(q) ||
+    (v.summary||"").toLowerCase().includes(q)
+  );
+
+  render(filtered);
+});
+
+loadVideos();
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,7 @@
+[functions]
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/youtube"
+  to = "/.netlify/functions/youtube"
+  status = 200
