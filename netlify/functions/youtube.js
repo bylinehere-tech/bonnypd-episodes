@@ -1,16 +1,16 @@
 // netlify/functions/youtube.js
+// Netlify Functions (CommonJS) 안정형 핸들 기반: @BONNYpd → channelId 추출 → RSS(channel_id)로 목록 반환
 
 let cached = { channelId: null, ts: 0 };
 
-export default async (req) => {
+exports.handler = async function (event) {
   try {
-    const url = new URL(req.url);
-    const max = Number(url.searchParams.get("max") || 30);
+    const max = Math.min(100, Math.max(1, Number(event.queryStringParameters?.max || 30)));
+    const HANDLE = "BONNYpd";
 
-    const HANDLE = "BONNYpd"; // ✅ 핸들 반영
-
-    // 1) 채널ID 캐시(1시간)
     const now = Date.now();
+
+    // 1시간 캐시
     if (!cached.channelId || (now - cached.ts) > 60 * 60 * 1000) {
       const chRes = await fetch(`https://www.youtube.com/@${HANDLE}`, {
         headers: {
@@ -18,33 +18,35 @@ export default async (req) => {
           "accept": "text/html,*/*",
         },
       });
-      if (!chRes.ok) {
-        return json({ error: "Failed to fetch channel page", status: chRes.status }, 500);
-      }
-      const html = await chRes.text();
 
+      if (!chRes.ok) {
+        return json(500, { error: "Failed to fetch channel page", status: chRes.status });
+      }
+
+      const html = await chRes.text();
       const m = html.match(/"channelId":"(UC[a-zA-Z0-9_-]{20,})"/);
+
       if (!m) {
-        return json({ error: "Could not extract channelId from handle page" }, 500);
+        return json(500, { error: "Could not extract channelId from handle page" });
       }
 
       cached.channelId = m[1];
       cached.ts = now;
     }
 
-    const CHANNEL_ID = cached.channelId;
+    const channelId = cached.channelId;
 
-    // 2) RSS 가져오기 (가장 안정)
-    const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`;
+    // 가장 안정적인 RSS
+    const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
     const res = await fetch(feedUrl, {
       headers: {
         "user-agent": "Mozilla/5.0",
         "accept": "application/xml,text/xml,*/*",
-      }
+      },
     });
 
     if (!res.ok) {
-      return json({ error: "Failed to fetch YouTube feed", status: res.status }, 500);
+      return json(500, { error: "Failed to fetch YouTube feed", status: res.status });
     }
 
     const xml = await res.text();
@@ -62,34 +64,45 @@ export default async (req) => {
     };
 
     const decode = (s) =>
-      (s || "")
+      String(s || "")
         .replaceAll("&amp;", "&")
         .replaceAll("&lt;", "<")
         .replaceAll("&gt;", ">")
         .replaceAll("&quot;", "\"")
         .replaceAll("&#39;", "'");
 
-    const items = entries.map(e => {
-      const title = decode(pick(e, "title"));
-      const id = pick(e, "yt:videoId");
-      const published = pick(e, "published");
-      const link = pickAttr(e, "link", "href") || (id ? `https://www.youtube.com/watch?v=${id}` : "");
-      const summary = decode(pick(e, "media:description") || pick(e, "summary"));
-      const thumbnail = id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : "";
-      return { id, title, published, link, thumbnail, summary };
-    }).filter(x => x.id && x.title).slice(0, Math.max(1, Math.min(100, max)));
+    const items = entries
+      .map(e => {
+        const title = decode(pick(e, "title"));
+        const id = pick(e, "yt:videoId");
+        const published = pick(e, "published");
+        const link = pickAttr(e, "link", "href") || (id ? `https://www.youtube.com/watch?v=${id}` : "");
+        const summary = decode(pick(e, "media:description") || pick(e, "summary"));
+        const thumbnail = id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : "";
+        return { id, title, published, link, thumbnail, summary };
+      })
+      .filter(x => x.id && x.title)
+      .slice(0, max);
 
-    return json({
+    return json(200, {
       handle: `@${HANDLE}`,
-      channelId: CHANNEL_ID,
+      channelId,
       updatedAt: new Date().toISOString(),
       count: items.length,
-      items
-    }, 200);
-
+      items,
+    });
   } catch (err) {
-    return json({ error: String(err) }, 500);
+    return json(500, { error: String(err) });
   }
 };
 
-functi
+function json(statusCode, obj) {
+  return {
+    statusCode,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "public, max-age=300",
+    },
+    body: JSON.stringify(obj),
+  };
+}
